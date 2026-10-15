@@ -1,0 +1,8 @@
+.env
+rti.db
+__pycache__/
+*.pyc
+.venv/
+venv/
+.vercel/
+.DS_Store

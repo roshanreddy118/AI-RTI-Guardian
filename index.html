@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI RTI Guardian</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper:#f4efe4; --paper2:#ece4d2; --ink:#23201a; --ink-soft:#5a5244;
+    --faint:#8a8070; --rule:#d8cdb6; --rule-strong:#c3b596;
+    --seal:#9a3b2e; --seal-soft:#b65545;
+    --stamp:#2d5e4e; --accent:#1f5fa6; --accent-ink:#143f6e;
+    --green:#2f7d4f; --amber:#9a6b16; --red:#9a3b2e;
+    --card:#fbf8f0; --shadow:0 24px 60px -30px rgba(60,48,30,.5), 0 2px 0 rgba(255,255,255,.6) inset;
+    --radius:14px;
+  }
+  * { box-sizing:border-box; }
+  html,body { height:100%; }
+  body { margin:0; color:var(--ink); background:var(--paper);
+    font:15px/1.6 "Inter", system-ui, sans-serif; -webkit-font-smoothing:antialiased; }
+
+  /* ---------- RTI-themed background: a desk of official documents under scrutiny ---------- */
+  .bg { position:fixed; inset:0; z-index:-1; overflow:hidden;
+    background:
+      radial-gradient(900px 600px at 80% -10%, #fbf7ec, transparent 60%),
+      radial-gradient(800px 700px at 10% 110%, #e7dcc6, transparent 60%),
+      linear-gradient(170deg,#f6f1e6,#e9dfca); }
+  .bg svg { position:absolute; width:100%; height:100%; opacity:.9; }
+  /* floating paper sheets */
+  @keyframes drift { 0%,100%{ transform:translateY(0) rotate(var(--r)); } 50%{ transform:translateY(-14px) rotate(var(--r)); } }
+  .sheet { animation:drift 14s ease-in-out infinite; transform-origin:center; }
+  .sheet.s2 { animation-duration:18s; } .sheet.s3 { animation-duration:11s; } .sheet.s4 { animation-duration:16s; }
+  /* magnifier sweeps across the page */
+  @keyframes sweep { 0%{ transform:translate(0,0);} 50%{ transform:translate(60px,40px);} 100%{ transform:translate(0,0);} }
+  .lens { animation:sweep 20s ease-in-out infinite; transform-origin:center; }
+  /* redaction bar that lifts to reveal text underneath = transparency */
+  @keyframes reveal { 0%,40%{ transform:scaleX(1);} 60%,100%{ transform:scaleX(0);} }
+  .redact { transform-origin:left center; animation:reveal 9s ease-in-out infinite; }
+  .redact.d1 { animation-delay:1s; } .redact.d2 { animation-delay:3s; } .redact.d3 { animation-delay:5s; }
+
+  .wrap { max-width:900px; margin:0 auto; padding:0 22px 90px; }
+
+  /* ---------- masthead: looks like an official gazette header ---------- */
+  header.gazette { text-align:center; padding:60px 0 30px; position:relative; }
+  .eyebrow { font:600 12px/1 "Inter"; letter-spacing:3px; text-transform:uppercase; color:var(--seal); }
+  .rule-line { height:1px; background:linear-gradient(90deg,transparent,var(--rule-strong),transparent); margin:14px auto; max-width:320px; }
+  h1.title { font-family:"Fraunces", Georgia, serif; font-weight:700; font-size:clamp(32px,5.5vw,52px);
+    line-height:1.05; margin:8px 0; letter-spacing:-.5px; color:var(--ink); }
+  h1.title em { font-style:italic; color:var(--seal); }
+  .lede { max-width:600px; margin:14px auto 0; color:var(--ink-soft); font-size:16px; }
+  .seal { position:absolute; top:48px; right:4%; width:92px; height:92px; opacity:.9; }
+  @media(max-width:640px){ .seal{ display:none; } }
+
+  /* ---------- document-style step cards ---------- */
+  .step { position:relative; background:var(--card); border:1px solid var(--rule);
+    border-radius:var(--radius); padding:26px 26px 28px; margin:22px 0; box-shadow:var(--shadow); }
+  .step::before { /* file-tab */ content:attr(data-tab); position:absolute; top:-12px; left:24px;
+    background:var(--stamp); color:#f4efe4; font:700 11px/1 "Inter"; letter-spacing:1.5px; text-transform:uppercase;
+    padding:7px 12px; border-radius:7px 7px 0 0; box-shadow:0 6px 14px -8px rgba(0,0,0,.4); }
+  .step::after { /* punch holes, like a filed document */ content:""; position:absolute; left:10px; top:50%;
+    transform:translateY(-50%); width:7px; height:120px;
+    background:radial-gradient(circle 4px at 50% 12px, rgba(0,0,0,.1) 60%, transparent 62%),
+               radial-gradient(circle 4px at 50% 60px, rgba(0,0,0,.1) 60%, transparent 62%),
+               radial-gradient(circle 4px at 50% 108px, rgba(0,0,0,.1) 60%, transparent 62%);
+    opacity:.5; pointer-events:none; }
+  .step-head { display:flex; align-items:center; gap:14px; margin:6px 0 16px; }
+  .num { flex:none; width:40px; height:40px; border-radius:50%; display:grid; place-items:center;
+    font-family:"Fraunces",serif; font-weight:700; font-size:18px; color:#f4efe4; background:var(--seal);
+    box-shadow:0 6px 16px -8px var(--seal); border:2px solid #f4efe4; outline:1px solid var(--rule); }
+  .step-head h2 { font-family:"Fraunces",serif; font-size:21px; margin:0; font-weight:600; }
+  .step-head p { margin:2px 0 0; font-size:13px; color:var(--faint); }
+
+  label { display:block; font-size:11px; color:var(--faint); margin:14px 0 6px; font-weight:700; letter-spacing:1px; text-transform:uppercase; }
+  textarea, input[type=text], input[type=number], input[type=date] {
+    width:100%; background:#fffdf7; color:var(--ink); border:1px solid var(--rule-strong);
+    border-radius:9px; padding:13px 14px; font:inherit; transition:border-color .15s, box-shadow .15s; }
+  textarea { resize:vertical; min-height:84px; line-height:1.7; }
+  textarea:focus, input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(31,95,166,.14); }
+  ::placeholder { color:#b2a991; }
+
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .chip { font-size:12.5px; padding:7px 12px; border-radius:999px; cursor:pointer; color:var(--ink-soft);
+    background:#fffdf7; border:1px solid var(--rule-strong); transition:all .15s; }
+  .chip:hover { color:var(--accent-ink); border-color:var(--accent); background:#eef4fb; }
+
+  .btn { display:inline-flex; align-items:center; gap:9px; border:0; border-radius:9px; cursor:pointer;
+    font:inherit; font-weight:700; padding:12px 22px; margin-top:16px; color:#f4efe4;
+    background:var(--seal); box-shadow:0 10px 22px -12px var(--seal); transition:transform .12s, filter .12s; }
+  .btn:hover { transform:translateY(-1px); filter:brightness(1.06); }
+  .btn:active { transform:translateY(0); }
+  .btn:disabled { opacity:.6; cursor:default; transform:none; box-shadow:none; }
+  .btn.ghost { background:transparent; color:var(--accent-ink); border:1px solid var(--accent); box-shadow:none; }
+  .btn.ghost:hover { background:#eef4fb; }
+  .btn.sm { padding:7px 13px; font-size:12.5px; margin-top:0; }
+
+  .row { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
+  .field { flex:1; min-width:180px; }
+  .check { display:inline-flex; align-items:center; gap:9px; color:var(--ink); font-size:14px; font-weight:500;
+    padding:12px 0; text-transform:none; letter-spacing:0; margin:0; }
+  .check input { width:18px; height:18px; accent-color:var(--seal); }
+
+  .result { margin-top:18px; display:none; }
+  .result.show { display:block; animation:rise .35s ease; }
+  @keyframes rise { from { opacity:0; transform:translateY(8px);} to {opacity:1; transform:none;} }
+  .kv { display:flex; gap:10px; align-items:baseline; margin:7px 0; }
+  .kv .k { color:var(--faint); font-size:11px; text-transform:uppercase; letter-spacing:1px; min-width:92px; font-weight:700; }
+  .kv .v { color:var(--ink); font-weight:500; }
+
+  .pill { display:inline-flex; align-items:center; gap:7px; padding:5px 13px; border-radius:999px; font-size:13px; font-weight:700; border:1px solid; }
+  .routine { background:rgba(47,125,79,.1); color:var(--green); border-color:rgba(47,125,79,.35); }
+  .potentially_sensitive { background:rgba(154,107,22,.1); color:var(--amber); border-color:rgba(154,107,22,.35); }
+  .higher_sensitivity { background:rgba(154,59,46,.1); color:var(--red); border-color:rgba(154,59,46,.35); }
+
+  .block { background:#fffdf7; border:1px solid var(--rule); border-radius:11px; padding:15px 16px; margin-top:14px; }
+  .block h4 { margin:0 0 9px; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--faint); font-weight:700; }
+  .taglist { display:flex; flex-wrap:wrap; gap:8px; }
+  .tag { font-size:12.5px; padding:6px 11px; border-radius:7px; background:var(--paper2); border:1px solid var(--rule); color:var(--ink-soft); }
+
+  /* the drafted RTI looks like a typed official letter */
+  pre { white-space:pre-wrap; word-break:break-word; background:#fffdf7; border:1px solid var(--rule-strong);
+    border-radius:10px; padding:20px 22px; font:14px/1.75 "Courier Prime", "Courier New", monospace; color:#2a261e;
+    max-height:480px; overflow:auto; margin:12px 0 0; box-shadow:0 1px 0 rgba(255,255,255,.7) inset;
+    border-left:3px solid var(--stamp); }
+  .doc-head { display:flex; justify-content:space-between; align-items:center; margin-top:16px; }
+  .doc-head h4 { margin:0; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--faint); font-weight:700; }
+
+  .anomaly { display:flex; gap:12px; padding:13px 14px; border-radius:10px; margin-top:10px;
+    background:rgba(154,59,46,.06); border:1px solid rgba(154,59,46,.25); border-left:3px solid var(--seal); }
+  .anomaly .ico { flex:none; font-size:15px; color:var(--seal); }
+  .anomaly .finding { font-weight:700; color:var(--ink); }
+  .anomaly .ev { color:var(--ink-soft); font-size:13px; margin-top:2px; }
+  .ok-note { color:var(--green); font-size:14px; margin-top:10px; display:flex; align-items:center; gap:8px; font-weight:600; }
+
+  .tablewrap { overflow:auto; border:1px solid var(--rule); border-radius:10px; margin-top:4px; background:#fffdf7; }
+  table { width:100%; border-collapse:collapse; font-size:14px; min-width:560px; }
+  th { text-align:left; padding:11px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:1px;
+    color:var(--faint); background:var(--paper2); border-bottom:1px solid var(--rule); font-weight:700; }
+  td { padding:11px 14px; border-bottom:1px solid var(--rule); vertical-align:middle; }
+  tr:last-child td { border-bottom:0; }
+  .daychip { font-weight:700; font-variant-numeric:tabular-nums; padding:3px 9px; border-radius:7px; font-size:12.5px; }
+  .st { font-size:12px; padding:3px 10px; border-radius:999px; background:var(--paper2); color:var(--ink-soft); text-transform:capitalize; }
+
+  .warn { color:var(--amber); font-size:13.5px; margin-top:12px; display:flex; align-items:flex-start; gap:8px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .spinner { width:15px; height:15px; border:2px solid rgba(154,59,46,.3); border-top-color:var(--seal);
+    border-radius:50%; display:inline-block; animation:spin .7s linear infinite; }
+  .loading { color:var(--ink-soft); display:flex; align-items:center; gap:10px; margin-top:14px; }
+
+  .disclaimer { font-size:12.5px; color:var(--ink-soft); margin-top:30px; padding:16px 18px; line-height:1.65;
+    background:#fffdf7; border:1px dashed var(--rule-strong); border-radius:11px; }
+  .disclaimer strong { color:var(--ink); }
+  footer { text-align:center; color:var(--faint); font-size:12px; margin-top:26px; font-style:italic; }
+</style>
+</head>
+<body>
+<!-- RTI-themed backdrop: filed documents, redaction bars lifting to reveal (transparency), and a magnifier scanning for truth -->
+<div class="bg">
+  <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fffdf7"/><stop offset="1" stop-color="#efe6d2"/>
+      </linearGradient>
+      <filter id="soft"><feGaussianBlur stdDeviation="0.4"/></filter>
+    </defs>
+
+    <!-- a scatter of official document sheets with ruled lines + redaction bars -->
+    <!-- sheet 1 -->
+    <g class="sheet" style="--r:-8deg" transform="translate(120 150) rotate(-8)" filter="url(#soft)">
+      <rect width="200" height="260" rx="6" fill="url(#pg)" stroke="#d8cdb6"/>
+      <rect x="22" y="26" width="120" height="10" rx="3" fill="#cfc4ab"/>
+      <rect x="22" y="52" width="156" height="6" rx="3" fill="#e2d8c2"/>
+      <rect x="22" y="68" width="156" height="6" rx="3" fill="#e2d8c2"/>
+      <rect class="redact d1" x="22" y="88" width="110" height="12" rx="3" fill="#23201a"/>
+      <rect x="22" y="112" width="156" height="6" rx="3" fill="#e2d8c2"/>
+      <rect x="22" y="128" width="130" height="6" rx="3" fill="#e2d8c2"/>
+      <circle cx="150" cy="215" r="30" fill="none" stroke="#9a3b2e" stroke-width="2" opacity=".5"/>
+      <text x="150" y="212" font-family="Fraunces,serif" font-size="9" fill="#9a3b2e" text-anchor="middle" opacity=".6">RIGHT TO</text>
+      <text x="150" y="224" font-family="Fraunces,serif" font-size="9" fill="#9a3b2e" text-anchor="middle" opacity=".6">INFORM.</text>
+    </g>
+    <!-- sheet 2 -->
+    <g class="sheet s2" style="--r:6deg" transform="translate(1120 110) rotate(6)" filter="url(#soft)">
+      <rect width="220" height="280" rx="6" fill="url(#pg)" stroke="#d8cdb6"/>
+      <rect x="24" y="28" width="150" height="12" rx="3" fill="#cfc4ab"/>
+      <rect x="24" y="56" width="172" height="6" rx="3" fill="#e2d8c2"/>
+      <rect class="redact d2" x="24" y="74" width="140" height="12" rx="3" fill="#23201a"/>
+      <rect x="24" y="98" width="172" height="6" rx="3" fill="#e2d8c2"/>
+      <rect x="24" y="114" width="150" height="6" rx="3" fill="#e2d8c2"/>
+      <rect class="redact d3" x="24" y="134" width="96" height="12" rx="3" fill="#23201a"/>
+      <rect x="24" y="158" width="172" height="6" rx="3" fill="#e2d8c2"/>
+    </g>
+    <!-- sheet 3 -->
+    <g class="sheet s3" style="--r:-4deg" transform="translate(240 560) rotate(-4)" filter="url(#soft)">
+      <rect width="180" height="230" rx="6" fill="url(#pg)" stroke="#d8cdb6"/>
+      <rect x="20" y="24" width="100" height="10" rx="3" fill="#cfc4ab"/>
+      <rect x="20" y="48" width="140" height="6" rx="3" fill="#e2d8c2"/>
+      <rect class="redact d1" x="20" y="66" width="90" height="11" rx="3" fill="#23201a"/>
+      <rect x="20" y="88" width="140" height="6" rx="3" fill="#e2d8c2"/>
+      <rect x="20" y="104" width="118" height="6" rx="3" fill="#e2d8c2"/>
+    </g>
+    <!-- sheet 4 -->
+    <g class="sheet s4" style="--r:9deg" transform="translate(1080 540) rotate(9)" filter="url(#soft)">
+      <rect width="190" height="240" rx="6" fill="url(#pg)" stroke="#d8cdb6"/>
+      <rect x="20" y="24" width="110" height="10" rx="3" fill="#cfc4ab"/>
+      <rect x="20" y="48" width="150" height="6" rx="3" fill="#e2d8c2"/>
+      <rect x="20" y="64" width="150" height="6" rx="3" fill="#e2d8c2"/>
+      <rect class="redact d2" x="20" y="84" width="120" height="11" rx="3" fill="#23201a"/>
+    </g>
+
+    <!-- magnifier scanning the documents (scrutiny / transparency) -->
+    <g class="lens" transform="translate(640 420)">
+      <circle r="78" fill="rgba(31,95,166,.05)" stroke="#1f5fa6" stroke-width="3" opacity=".55"/>
+      <circle r="78" fill="none" stroke="#fffdf7" stroke-width="1.5" opacity=".8"/>
+      <line x1="55" y1="55" x2="120" y2="120" stroke="#1f5fa6" stroke-width="12" stroke-linecap="round" opacity=".5"/>
+      <line x1="55" y1="55" x2="120" y2="120" stroke="#143f6e" stroke-width="5" stroke-linecap="round" opacity=".4"/>
+    </g>
+  </svg>
+</div>
+
+<div class="wrap">
+
+  <header class="gazette">
+    <svg class="seal" viewBox="0 0 100 100" aria-hidden="true">
+      <circle cx="50" cy="50" r="46" fill="none" stroke="#9a3b2e" stroke-width="2" opacity=".7"/>
+      <circle cx="50" cy="50" r="38" fill="none" stroke="#9a3b2e" stroke-width="1" opacity=".5"/>
+      <path id="arc" d="M50,50 m-30,0 a30,30 0 1,1 60,0 a30,30 0 1,1 -60,0" fill="none"/>
+      <text font-family="Fraunces,serif" font-size="7.5" fill="#9a3b2e" opacity=".8" letter-spacing="1">
+        <textPath href="#arc" startOffset="4%">RIGHT TO INFORMATION · GOVT TRANSPARENCY · </textPath>
+      </text>
+      <text x="50" y="46" text-anchor="middle" font-family="Fraunces,serif" font-size="15" font-weight="700" fill="#9a3b2e" opacity=".85">RTI</text>
+      <text x="50" y="60" text-anchor="middle" font-family="Inter" font-size="6.5" fill="#9a3b2e" opacity=".7" letter-spacing="1">2005</text>
+    </svg>
+    <div class="eyebrow">An AI transparency office</div>
+    <div class="rule-line"></div>
+    <h1 class="title">The AI <em>RTI Guardian</em></h1>
+    <div class="rule-line"></div>
+    <p class="lede">Describe what you want to know in one sentence. The office finds the right authority, drafts a precise application, flags sensitivity, tracks the deadline, and scrutinises the reply.</p>
+  </header>
+
+  <!-- STEP 1 -->
+  <section class="step" data-tab="Application">
+    <div class="step-head">
+      <div class="num">1</div>
+      <div><h2>What do you want to know?</h2><p>Plain language — any Indian language or English.</p></div>
+    </div>
+    <textarea id="query" placeholder="e.g. Details of all road contracts given in my taluk during the last 3 years"></textarea>
+    <div class="chips" id="chips"></div>
+    <button id="draftBtn" class="btn" onclick="doDraft()"><span>Draft RTI</span></button>
+    <div id="draftOut" class="result"></div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="step" id="trackCard" data-tab="Filing" style="display:none">
+    <div class="step-head">
+      <div class="num">2</div>
+      <div><h2>File &amp; track the deadline</h2><p>Statutory reply window is 30 days — 48 hours for life or liberty.</p></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Filed on</label><input id="filedOn" type="date"></div>
+      <div class="field"><label class="check"><input id="lifeLiberty" type="checkbox"> Involves life or liberty (48h window)</label></div>
+    </div>
+    <button class="btn ghost" onclick="fileRequest()">Mark as filed &amp; track</button>
+  </section>
+
+  <!-- TRACKED -->
+  <section class="step" data-tab="Register">
+    <div class="step-head">
+      <div class="num" style="background:var(--stamp);box-shadow:0 6px 16px -8px var(--stamp)">⏱</div>
+      <div><h2>Register of requests</h2><p>Live countdown to each statutory deadline.</p></div>
+    </div>
+    <div class="tablewrap">
+      <table id="reqTable"><thead><tr><th>#</th><th>Subject</th><th>Sensitivity</th><th>Deadline</th><th>Days left</th><th>Status</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="step" data-tab="Scrutiny">
+    <div class="step-head">
+      <div class="num">3</div>
+      <div><h2>Scrutinise a response</h2><p>Spots red flags in the reply and drafts your follow-up or first appeal.</p></div>
+    </div>
+    <label>Link to a registered request (optional)</label>
+    <input id="analyzeId" type="number" placeholder="request #">
+    <label>Paste the RTI response text</label>
+    <textarea id="responseText" placeholder="Paste the authority's reply here…"></textarea>
+    <button id="analyzeBtn" class="btn" onclick="doAnalyze()"><span>Scrutinise &amp; draft follow-up</span></button>
+    <div id="analyzeOut" class="result"></div>
+  </section>
+
+  <div class="disclaimer">
+    <strong>Note.</strong> This office surfaces content-based sensitivity <em>factors</em> and precautions. It never certifies that any request is safe. For higher-sensitivity matters, consider legal or civil-society support before filing. This is not legal advice.
+  </div>
+  <footer>AI RTI Guardian · drafts seek records, never accusations</footer>
+</div>
+
+<script>
+let lastDraft = null;
+
+const EXAMPLES = [
+  "Status of my pending pension application and the reason for delay",
+  "Details of all road contracts in my taluk over the last 3 years, with contractor names and amounts",
+  "All mining lease approvals and royalty payments in my district in the last 5 years",
+  "MGNREGA money sanctioned and spent in my panchayat last year, work-wise",
+];
+
+function renderChips() {
+  document.getElementById('chips').innerHTML =
+    EXAMPLES.map(e => `<span class="chip" onclick="useExample(this)">${esc(e)}</span>`).join('');
+}
+function useExample(el) { document.getElementById('query').value = el.textContent; }
+
+async function post(url, body) {
+  const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  if (!r.ok) throw new Error((await r.json().catch(()=>({}))).detail || r.statusText);
+  return r.json();
+}
+const esc = s => (s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const DOT = { routine:'🟢', potentially_sensitive:'🟡', higher_sensitivity:'🔴' };
+
+function copyText(id, btn) {
+  const el = document.getElementById(id);
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    const t = btn.textContent; btn.textContent = 'Copied ✓';
+    setTimeout(() => btn.textContent = t, 1400);
+  });
+}
+
+async function doDraft() {
+  const q = document.getElementById('query').value.trim();
+  if (!q) return;
+  const btn = document.getElementById('draftBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Drafting…';
+  const out = document.getElementById('draftOut');
+  out.className = 'result show';
+  out.innerHTML = '<div class="loading"><span class="spinner"></span> Finding the authority and drafting your RTI…</div>';
+  try {
+    const d = await post('/api/draft', { query:q });
+    lastDraft = d;
+    const lvl = d.sensitivity_level || 'routine';
+    out.innerHTML = `
+      <div class="kv"><span class="k">Authority</span><span class="v">${esc(d.authority)}</span></div>
+      <div class="kv"><span class="k">Sensitivity</span><span><span class="pill ${lvl}">${DOT[lvl]||'⚪'} ${esc(lvl.replace(/_/g,' '))}</span></span></div>
+      <div class="kv"><span class="k">Subject</span><span class="v">${esc(d.subject)}</span></div>
+      <div class="block"><h4>Sensitivity factors (not a safety verdict)</h4>
+        <div class="taglist">${(d.sensitivity_factors||[]).map(f=>`<span class="tag">${esc(f)}</span>`).join('') || '<span class="tag">None noted</span>'}</div></div>
+      <div class="block"><h4>Suggested precautions</h4>
+        <div class="taglist">${(d.precautions||[]).map(f=>`<span class="tag">${esc(f)}</span>`).join('') || '<span class="tag">None noted</span>'}</div></div>
+      <div class="doc-head"><h4>Draft RTI application</h4>
+        <button class="btn ghost sm" onclick="copyText('draftBody', this)">Copy</button></div>
+      <pre id="draftBody">${esc(d.body)}</pre>`;
+    const tc = document.getElementById('trackCard');
+    tc.style.display = 'block';
+    tc.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    document.getElementById('filedOn').value = new Date().toISOString().slice(0,10);
+  } catch (e) { out.innerHTML = `<div class="warn">⚠ ${esc(e.message)}</div>`; }
+  btn.disabled = false; btn.innerHTML = '<span>Draft RTI</span>';
+}
+
+async function fileRequest() {
+  if (!lastDraft) return;
+  await post('/api/requests', {
+    subject: lastDraft.subject, authority: lastDraft.authority, body: lastDraft.body,
+    sensitivity: lastDraft.sensitivity_level || 'routine',
+    life_liberty: document.getElementById('lifeLiberty').checked,
+    filed_on: document.getElementById('filedOn').value || null,
+  });
+  loadRequests();
+}
+
+async function loadRequests() {
+  const rows = await (await fetch('/api/requests')).json();
+  const tb = document.querySelector('#reqTable tbody');
+  tb.innerHTML = rows.map(r => {
+    const dl = r.days_remaining;
+    const bg = dl < 0 ? 'rgba(154,59,46,.14)' : dl <= 5 ? 'rgba(154,107,22,.14)' : 'rgba(47,125,79,.14)';
+    const fg = dl < 0 ? 'var(--red)' : dl <= 5 ? 'var(--amber)' : 'var(--green)';
+    const lvl = r.sensitivity;
+    return `<tr>
+      <td>${r.id}</td>
+      <td>${esc(r.subject)}</td>
+      <td><span class="pill ${lvl}" style="font-size:11.5px;padding:3px 10px">${DOT[lvl]||'⚪'} ${esc(lvl.replace(/_/g,' '))}</span></td>
+      <td>${r.deadline_on}</td>
+      <td><span class="daychip" style="background:${bg};color:${fg}">${dl<0?Math.abs(dl)+' overdue':dl+' d'}</span></td>
+      <td><span class="st">${esc(r.status)}</span></td></tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:var(--faint);text-align:center;padding:22px">No requests registered yet.</td></tr>';
+}
+
+async function doAnalyze() {
+  const btn = document.getElementById('analyzeBtn');
+  const out = document.getElementById('analyzeOut');
+  out.className = 'result show';
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Scrutinising…';
+  out.innerHTML = '<div class="loading"><span class="spinner"></span> Scanning the response for red flags…</div>';
+  try {
+    const idv = document.getElementById('analyzeId').value;
+    const d = await post('/api/analyze', {
+      request_id: idv ? Number(idv) : null,
+      response_text: document.getElementById('responseText').value,
+    });
+    const anoms = d.anomalies || [];
+    const list = anoms.length
+      ? anoms.map(a=>`<div class="anomaly"><span class="ico">⚑</span><div><div class="finding">${esc(a.finding)}</div><div class="ev">${esc(a.evidence)}</div></div></div>`).join('')
+      : '<div class="ok-note">✓ No red flags detected in the text.</div>';
+    const act = (d.recommended_action||'none').replace(/_/g,' ');
+    out.innerHTML = `
+      <div class="block"><h4>Detected anomalies (${anoms.length})</h4>${list}</div>
+      <div class="kv" style="margin-top:14px"><span class="k">Recommended</span><span><span class="pill ${anoms.length?'potentially_sensitive':'routine'}">${esc(act)}</span></span></div>
+      ${d.draft ? `<div class="doc-head"><h4>Drafted follow-up / appeal</h4>
+        <button class="btn ghost sm" onclick="copyText('appealBody', this)">Copy</button></div>
+        <pre id="appealBody">${esc(d.draft)}</pre>`
+        : '<div class="warn" style="margin-top:14px">⚠ The AI draft came back empty — detection above is still valid. Try again to regenerate the draft.</div>'}`;
+    loadRequests();
+  } catch (e) { out.innerHTML = `<div class="warn">⚠ ${esc(e.message)}</div>`; }
+  btn.disabled = false; btn.innerHTML = '<span>Scrutinise &amp; draft follow-up</span>';
+}
+
+renderChips();
+loadRequests();
+</script>
+</body>
+</html>
