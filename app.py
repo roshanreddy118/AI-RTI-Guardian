@@ -43,7 +43,7 @@ app = FastAPI(title="AI RTI Guardian")
 
 
 # --- storage (Postgres on Vercel, SQLite locally — see storage.py) ---------
-storage.init_db()
+# Table creation is lazy (storage._ensure) so no DB I/O runs at import time.
 
 
 # --- LLM client ------------------------------------------------------------

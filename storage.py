@@ -15,10 +15,17 @@ from pathlib import Path
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 IS_PG = DATABASE_URL.startswith(("postgres://", "postgresql://"))
-SQLITE_PATH = Path(__file__).parent / "rti.db"
+
+# On a read-only serverless FS (Vercel) the only writable dir is /tmp. Use it for the
+# SQLite fallback so a demo without DATABASE_URL doesn't 500 on first write; locally
+# keep the file next to the module. (Durable storage still needs DATABASE_URL.)
+_LOCAL_SQLITE = Path(__file__).parent / "rti.db"
+SQLITE_PATH = _LOCAL_SQLITE if os.access(Path(__file__).parent, os.W_OK) else Path("/tmp/rti.db")
 
 COLUMNS = ("id", "created_at", "subject", "authority", "body",
            "sensitivity", "filed_on", "deadline_on", "status", "response_text")
+
+_initialized = False
 
 
 def _connect():
@@ -28,6 +35,17 @@ def _connect():
     conn = sqlite3.connect(SQLITE_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _ensure() -> None:
+    """Create the table on first DB use. Running this per-request (idempotent via
+    CREATE TABLE IF NOT EXISTS) keeps DB I/O out of module import, so a cold-start
+    DB hiccup returns a clean error from the endpoint instead of crashing the
+    whole serverless function."""
+    global _initialized
+    if not _initialized:
+        init_db()
+        _initialized = True
 
 
 def init_db() -> None:
@@ -52,6 +70,7 @@ def init_db() -> None:
 
 def insert_request(created_at, subject, authority, body, sensitivity,
                    filed_on, deadline_on) -> int:
+    _ensure()
     vals = (created_at, subject, authority, body, sensitivity, filed_on, deadline_on)
     cols = "(created_at, subject, authority, body, sensitivity, filed_on, deadline_on)"
     with _connect() as conn:
@@ -67,6 +86,7 @@ def insert_request(created_at, subject, authority, body, sensitivity,
 
 
 def all_requests() -> list[dict]:
+    _ensure()
     with _connect() as conn:
         rows = conn.execute("SELECT * FROM requests ORDER BY id DESC").fetchall()
     # Normalise to dicts regardless of backend (psycopg tuples vs sqlite3.Row).
@@ -76,6 +96,7 @@ def all_requests() -> list[dict]:
 
 
 def mark_analyzed(request_id: int, response_text: str) -> None:
+    _ensure()
     ph = "%s" if IS_PG else "?"
     with _connect() as conn:
         conn.execute(
