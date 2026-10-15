@@ -21,7 +21,14 @@ from pydantic import BaseModel
 import anomalies
 import storage
 
-INDEX_HTML = Path(__file__).parent / "index.html"
+# index.html sits next to app.py locally; on Vercel the bundler may place it at the
+# cwd or repo root. Resolve against the first location that actually exists.
+_HERE = Path(__file__).resolve().parent
+INDEX_HTML = next(
+    (p for p in (_HERE / "index.html", _HERE.parent / "index.html", Path.cwd() / "index.html")
+     if p.exists()),
+    _HERE / "index.html",
+)
 
 # --- config (secrets stay in env; never hardcode) --------------------------
 LLM_ENDPOINT = os.environ.get("LLM_ENDPOINT", "https://ai-server-lime.vercel.app/api/chat")
@@ -166,7 +173,9 @@ class AnalyzeIn(BaseModel):
 # --- endpoints -------------------------------------------------------------
 @app.get("/")
 def index():
-    return FileResponse(INDEX_HTML)
+    if INDEX_HTML.exists():
+        return FileResponse(INDEX_HTML)
+    raise HTTPException(500, f"index.html not found (looked near {INDEX_HTML})")
 
 
 @app.post("/api/draft")
